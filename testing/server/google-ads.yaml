@@ -1,0 +1,14 @@
+# Google Ads API client configuration
+# You MUST put your developer_token from your Google Ads Manager Account here.
+developer_token: "iVSVXynhTdQfUdVwQ5g3ZQ"
+
+# -------------------------------------------------------------------------
+# The below fields are technically required by the yaml file format,
+# but we will override them dynamically in app.py using the OAuth tokens.
+# Do not change these placeholders.
+# -------------------------------------------------------------------------
+client_id: "OAUTH2_CLIENT_ID"
+client_secret: "OAUTH2_CLIENT_SECRET"
+refresh_token: "OAUTH2_REFRESH_TOKEN"
+login_customer_id: "2992642348"
+use_proto_plus: True

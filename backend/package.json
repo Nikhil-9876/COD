@@ -1,0 +1,29 @@
+{
+    "name": "cloudcrm-api",
+    "version": "1.0.0",
+    "type": "module",
+    "description": "CloudCRM multi-tenant marketing analytics REST API",
+    "main": "src/server.js",
+    "scripts": {
+        "start": "node src/server.js",
+        "dev": "node --watch src/server.js",
+        "migrate": "node db/migrate.js",
+        "migrate:keycloak": "node db/run_004_migration.js",
+        "migrate:keycloak:cleanup": "node db/run_005_migration.js",
+        "migrate:manager-role": "node db/run_006_migration.js"
+    },
+    "dependencies": {
+        "cors": "^2.8.5",
+        "dotenv": "^16.4.5",
+        "express": "^4.21.0",
+        "express-async-errors": "^3.1.1",
+        "express-rate-limit": "^7.4.1",
+        "helmet": "^8.0.0",
+        "jose": "^6.2.3",
+        "multer": "^1.4.5-lts.1",
+        "pdfkit": "^0.15.0",
+        "pg": "^8.11.5",
+        "uuid": "^10.0.0",
+        "zod": "^3.23.8"
+    }
+}
