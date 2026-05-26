@@ -3,6 +3,7 @@ import { RefreshCw, CheckCircle2, AlertTriangle, XCircle } from "lucide-react";
 import { useAuth } from "../../../context/AuthContext";
 import { StatusBadge } from "../overview/Overview";
 import { PlatformBadge } from "../campaigns/Campaigns";
+import { SyncSkeletonD, CardListSkeleton } from "../../ui/LoadingSkeletons";
 
 const icons: Record<string, React.ReactNode> = {
   Synced: <CheckCircle2 size={14} style={{ color: "#10B981" }} />,
@@ -27,13 +28,31 @@ const formatPlatform = (p: string) => {
 export function SyncStatusD() {
   const { apiFetch, user } = useAuth();
   const [syncRows, setSyncRows] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [syncingIds, setSyncingIds] = useState<Set<string>>(new Set());
   const [groupBy, setGroupBy] = useState<"none" | "client" | "platform">("none");
 
   useEffect(() => {
-    apiFetch("/api/sync/all-logs", { cache: "no-store" }).then(res => res.json()).then(data => setSyncRows(data.logs || []));
+    setLoading(true);
+    apiFetch("/api/sync/all-logs", { cache: "no-store" })
+      .then(res => res.json())
+      .then(data => setSyncRows(data.logs || []))
+      .finally(() => setLoading(false));
   }, [apiFetch]);
 
+  // useMemo must be called unconditionally — before any early return
+  const grouped = useMemo(() => {
+    if (groupBy === "none") return { "All": syncRows };
+    const g: Record<string, any[]> = {};
+    syncRows.forEach(r => {
+      const k = groupBy === "client" ? r.client_name : r.platform;
+      if (!g[k]) g[k] = [];
+      g[k].push(r);
+    });
+    return g;
+  }, [syncRows, groupBy]);
+
+  // Helper functions (plain functions, not hooks — safe to define after hooks)
   async function handleSync(clientId: string, platform?: string) {
     const key = platform ? `${clientId}-${platform}` : clientId;
     if (!clientId || syncingIds.has(key)) return;
@@ -78,19 +97,11 @@ export function SyncStatusD() {
     }
   }
 
-  const grouped = useMemo(() => {
-    if (groupBy === "none") return { "All": syncRows };
-    const g: Record<string, any[]> = {};
-    syncRows.forEach(r => {
-      const k = groupBy === "client" ? r.client_name : r.platform;
-      if (!g[k]) g[k] = [];
-      g[k].push(r);
-    });
-    return g;
-  }, [syncRows, groupBy]);
+  // Early return AFTER all hooks and derived state
+  if (loading) return <SyncSkeletonD />;
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-4 data-enter">
       <div className="flex items-center justify-between">
         <h1 className="text-slate-900 font-bold" style={{ fontSize: 18 }}>Sync Status</h1>
         <div className="flex items-center gap-2">
@@ -179,13 +190,31 @@ export function SyncStatusD() {
 export function SyncStatusM() {
   const { apiFetch, user } = useAuth();
   const [syncRows, setSyncRows] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [syncingIds, setSyncingIds] = useState<Set<string>>(new Set());
   const [groupBy, setGroupBy] = useState<"none" | "client" | "platform">("none");
 
   useEffect(() => {
-    apiFetch("/api/sync/all-logs", { cache: "no-store" }).then(res => res.json()).then(data => setSyncRows(data.logs || []));
+    setLoading(true);
+    apiFetch("/api/sync/all-logs", { cache: "no-store" })
+      .then(res => res.json())
+      .then(data => setSyncRows(data.logs || []))
+      .finally(() => setLoading(false));
   }, [apiFetch]);
 
+  // useMemo must be called unconditionally — before any early return
+  const grouped = useMemo(() => {
+    if (groupBy === "none") return { "All": syncRows };
+    const g: Record<string, any[]> = {};
+    syncRows.forEach(r => {
+      const k = groupBy === "client" ? r.client_name : r.platform;
+      if (!g[k]) g[k] = [];
+      g[k].push(r);
+    });
+    return g;
+  }, [syncRows, groupBy]);
+
+  // Helper functions (plain functions, not hooks — safe to define after hooks)
   async function handleSync(clientId: string, platform?: string) {
     const key = platform ? `${clientId}-${platform}` : clientId;
     if (!clientId || syncingIds.has(key)) return;
@@ -230,19 +259,11 @@ export function SyncStatusM() {
     }
   }
 
-  const grouped = useMemo(() => {
-    if (groupBy === "none") return { "All": syncRows };
-    const g: Record<string, any[]> = {};
-    syncRows.forEach(r => {
-      const k = groupBy === "client" ? r.client_name : r.platform;
-      if (!g[k]) g[k] = [];
-      g[k].push(r);
-    });
-    return g;
-  }, [syncRows, groupBy]);
+  // Early return AFTER all hooks and derived state
+  if (loading) return <div className="p-3"><CardListSkeleton count={5} /></div>;
 
   return (
-    <div className="flex flex-col gap-3 p-3">
+    <div className="flex flex-col gap-3 p-3 data-enter">
       <div className="flex items-center justify-between">
         <p className="text-slate-800 font-bold" style={{ fontSize: 15 }}>Sync Status</p>
         <button 

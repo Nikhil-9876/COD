@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
 import {
   ArrowRight,
@@ -10,6 +10,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { useAuth } from "../../../context/AuthContext";
+import { PageSpinner } from "../../ui/LoadingSkeletons";
 
 const GOOGLE_IDP_HINT = import.meta.env.VITE_KEYCLOAK_GOOGLE_IDP_HINT || "google";
 
@@ -125,7 +126,13 @@ function LoginForm({ desktop = false }: { desktop?: boolean }) {
   }
 
   return (
-    <div className={desktop ? "space-y-8" : "space-y-6"}>
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        beginLogin("standard");
+      }}
+      className={desktop ? "space-y-8" : "space-y-6"}
+    >
       <div className="space-y-3">
         {!desktop && (
           <div
@@ -185,8 +192,7 @@ function LoginForm({ desktop = false }: { desktop?: boolean }) {
         </div>
 
         <button
-          type="button"
-          onClick={() => beginLogin("standard")}
+          type="submit"
           disabled={loadingType !== null}
           className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl text-[12px] font-semibold text-white transition-opacity md:h-12 md:text-[12px]"
           style={{
@@ -228,7 +234,7 @@ function LoginForm({ desktop = false }: { desktop?: boolean }) {
           </p>
         </div>
       </div>
-    </div>
+    </form>
   );
 }
 
@@ -276,9 +282,23 @@ function MobileLayout() {
 }
 
 export function Login() {
+  const [showSplash, setShowSplash] = useState(true);
+
+  // Show the splash screen for 1.5 seconds on initial load
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setShowSplash(false);
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (showSplash) {
+    return <PageSpinner message="Welcome to Workspace" />;
+  }
+
   return (
     <div
-      className="min-h-screen w-full"
+      className="min-h-screen w-full data-enter"
       style={{
         background:
           "radial-gradient(circle at top left, rgba(94, 92, 230, 0.18), transparent 26%), linear-gradient(180deg,#EFF1F8 0%,#E5EAF6 100%)",

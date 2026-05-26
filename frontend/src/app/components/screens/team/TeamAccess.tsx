@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Plus, ShieldCheck, Trash2, Link as LinkIcon, CheckCircle2, Users } from "lucide-react";
 import { useAuth } from "../../../context/AuthContext";
+import { TeamAccessSkeleton, useDelayedLoading } from "../../ui/LoadingSkeletons";
 
 // Interface definitions
 interface TeamUser {
@@ -97,6 +98,11 @@ export function TeamAccess() {
   useEffect(() => {
     loadData();
   }, [apiFetch]);
+
+  const showSkeleton = useDelayedLoading(loading, 100);
+
+  if (showSkeleton) return <TeamAccessSkeleton />;
+  if (loading) return null;
 
   const managers = teamMembers.filter(m => m.role === "manager");
   const employees = teamMembers.filter(m => m.role === "employee");
@@ -244,10 +250,10 @@ export function TeamAccess() {
     }
   }
 
-  if (loading) return <div className="p-8 text-center text-slate-500">Loading team data...</div>;
+  if (loading) return <TeamAccessSkeleton />;
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-5 data-enter">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-slate-900 font-bold" style={{ fontSize: 18 }}>Team & Access</h1>

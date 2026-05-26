@@ -6,6 +6,7 @@ import {
 } from "recharts";
 import { Plus, ArrowUpRight, ArrowDownRight } from "lucide-react";
 import { useAuth } from "../../../context/AuthContext";
+import { OverviewSkeletonD, OverviewSkeletonM, useDelayedLoading } from "../../ui/LoadingSkeletons";
 
 export const fmtK = (num: number) => `$${(num / 1000).toFixed(1)}k`;
 export const fmtFull = (num: number) => `$${num.toLocaleString()}`;
@@ -47,32 +48,43 @@ export function StatCard({ label, value, sub, up }: { label: string; value: stri
   );
 }
 
-export function DashboardOverviewD({ onSection }: { onSection: (s: string) => void }) {
+export function DashboardOverviewD({ onSection, onAddClient }: { onSection: (s: string) => void; onAddClient?: () => void }) {
   const navigate = useNavigate();
   const { apiFetch, user } = useAuth();
   const canAddClient = user?.role === "admin";
   
+  const [loading, setLoading] = useState(true);
   const [metrics, setMetrics] = useState<any>({ total_spend: 0, avg_roas: 0, active_clients: 0, total_campaigns: 0 });
   const [clients, setClients] = useState<any[]>([]);
   const [monthlySpend, setMonthlySpend] = useState<any[]>([]);
   const [platformPie, setPlatformPie] = useState<any[]>([]);
 
   useEffect(() => {
-    apiFetch("/api/dashboard/agency").then(res => res.json()).then(setMetrics);
-    apiFetch("/api/clients").then(res => res.json()).then(data => setClients((data.clients || []).slice(0, 5)));
-    apiFetch("/api/charts/agency-spend").then(res => res.json()).then(data => {
-      if (data.data) {
-         setPlatformPie(data.data.map((d: any) => ({
-           name: d.platform,
-           value: Number(d.spend),
-           color: d.platform === 'google_ads' ? '#6366F1' : d.platform === 'meta_ads' ? '#EC4899' : '#F59E0B'
-         })));
+    setLoading(true);
+    Promise.all([
+      apiFetch("/api/dashboard/agency").then(res => res.json()),
+      apiFetch("/api/clients").then(res => res.json()),
+      apiFetch("/api/charts/agency-spend").then(res => res.json()),
+    ]).then(([dashData, clientsData, spendData]) => {
+      setMetrics(dashData);
+      setClients((clientsData.clients || []).slice(0, 5));
+      if (spendData.data) {
+        setPlatformPie(spendData.data.map((d: any) => ({
+          name: d.platform,
+          value: Number(d.spend),
+          color: d.platform === 'google_ads' ? '#6366F1' : d.platform === 'meta_ads' ? '#EC4899' : '#F59E0B'
+        })));
       }
-    });
+    }).finally(() => setLoading(false));
   }, [apiFetch]);
 
+  const showSkeleton = useDelayedLoading(loading, 100);
+
+  if (showSkeleton) return <OverviewSkeletonD />;
+  if (loading) return <div className="flex-1" />; // Prevent layout jumping or crashing while waiting 100ms
+
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-4 data-enter">
       {/* Page heading */}
       <div className="flex items-center justify-between">
         <div>
@@ -81,7 +93,7 @@ export function DashboardOverviewD({ onSection }: { onSection: (s: string) => vo
         </div>
         {canAddClient && (
           <button
-            onClick={() => navigate("/agency/add-client")}
+            onClick={onAddClient}
             className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-white font-semibold cursor-pointer hover:bg-indigo-600 transition-colors"
             style={{ background: "#6366F1", fontSize: 12 }}
           >
@@ -180,17 +192,29 @@ export function DashboardOverviewD({ onSection }: { onSection: (s: string) => vo
 
 export function DashboardOverviewM() {
   const { apiFetch, user } = useAuth();
+  const [loading, setLoading] = useState(true);
   const [metrics, setMetrics] = useState<any>({ total_spend: 0, avg_roas: 0, active_clients: 0, total_campaigns: 0 });
   const [clients, setClients] = useState<any[]>([]);
   const [monthlySpend, setMonthlySpend] = useState<any[]>([]);
 
   useEffect(() => {
-    apiFetch("/api/dashboard/agency").then(res => res.json()).then(setMetrics);
-    apiFetch("/api/clients").then(res => res.json()).then(data => setClients((data.clients || []).slice(0, 4)));
+    setLoading(true);
+    Promise.all([
+      apiFetch("/api/dashboard/agency").then(res => res.json()),
+      apiFetch("/api/clients").then(res => res.json()),
+    ]).then(([dashData, clientsData]) => {
+      setMetrics(dashData);
+      setClients((clientsData.clients || []).slice(0, 4));
+    }).finally(() => setLoading(false));
   }, [apiFetch]);
 
+  const showSkeleton = useDelayedLoading(loading, 100);
+
+  if (showSkeleton) return <OverviewSkeletonM />;
+  if (loading) return <div className="flex-1" />; 
+
   return (
-    <div className="flex flex-col gap-3 p-3">
+    <div className="flex flex-col gap-3 p-3 data-enter">
       <div>
         <p className="text-slate-800 font-bold" style={{ fontSize: 15 }}>Good morning, {user?.name || "User"} 👋</p>
         <p className="text-slate-400" style={{ fontSize: 11 }}>Bright Agency</p>

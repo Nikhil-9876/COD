@@ -53,23 +53,39 @@ export async function listCampaigns(req, res) {
         i++;
     }
 
+    // Pre-aggregate metrics in a CTE to prevent the Cartesian product that
+    // occurs when both campaign_metrics (1-to-many) and
+    // employee_campaign_assignments (1-to-many) are joined in the same query.
+    // Without the CTE, each metric row would be duplicated once per assigned
+    // employee, causing SUM(spend) etc. to be multiplied by employee count.
     const result = await query(
-        `SELECT c.id, c.client_id, c.name, c.platform, c.external_id, c.status,
-            c.budget, c.start_date, c.end_date, c.created_at,
-            cl.name AS client_name,
-            COALESCE(JSON_AGG(JSON_BUILD_OBJECT('id', u.id, 'name', u.name)) FILTER (WHERE u.id IS NOT NULL), '[]') AS assigned_employees,
-            COALESCE(SUM(cm.spend), 0) AS total_spend,
-            COALESCE(SUM(cm.leads), 0) AS total_leads,
-            COALESCE(SUM(cm.clicks), 0) AS total_clicks,
-            COALESCE(SUM(cm.revenue), 0) AS total_revenue
-     FROM campaigns c
-     JOIN clients cl ON cl.id = c.client_id AND cl.is_active = true
-     LEFT JOIN employee_campaign_assignments eca ON eca.campaign_id = c.id
-     LEFT JOIN users u ON u.id = eca.employee_id
-     LEFT JOIN campaign_metrics cm ON cm.campaign_id = c.id
-     WHERE ${conditions.join(' AND ')}
-     GROUP BY c.id, cl.name
-     ORDER BY c.created_at DESC`,
+        `WITH agg AS (
+            SELECT campaign_id,
+                   COALESCE(SUM(spend),   0) AS total_spend,
+                   COALESCE(SUM(leads),   0) AS total_leads,
+                   COALESCE(SUM(clicks),  0) AS total_clicks,
+                   COALESCE(SUM(revenue), 0) AS total_revenue
+            FROM campaign_metrics
+            GROUP BY campaign_id
+        )
+        SELECT c.id, c.client_id, c.name, c.platform, c.external_id, c.status,
+               c.budget, c.start_date, c.end_date, c.created_at,
+               cl.name AS client_name,
+               COALESCE((
+                   SELECT JSON_AGG(JSON_BUILD_OBJECT('id', u.id, 'name', u.name))
+                   FROM employee_campaign_assignments eca
+                   JOIN users u ON u.id = eca.employee_id
+                   WHERE eca.campaign_id = c.id
+               ), '[]') AS assigned_employees,
+               COALESCE(agg.total_spend,   0) AS total_spend,
+               COALESCE(agg.total_leads,   0) AS total_leads,
+               COALESCE(agg.total_clicks,  0) AS total_clicks,
+               COALESCE(agg.total_revenue, 0) AS total_revenue
+        FROM campaigns c
+        JOIN clients cl ON cl.id = c.client_id AND cl.is_active = true
+        LEFT JOIN agg ON agg.campaign_id = c.id
+        WHERE ${conditions.join(' AND ')}
+        ORDER BY c.created_at DESC`,
         values
     );
 

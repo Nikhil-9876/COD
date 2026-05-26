@@ -18,24 +18,33 @@ export async function agencyDashboard(req, res) {
         });
     }
 
+    // Query 1: spend, client count, last_synced directly from campaign_metrics
+    // (no join to campaigns here - that would create a Cartesian product since
+    //  both tables have a 1-to-many relationship with clients)
     const result = await query(
         `SELECT
-       COALESCE(SUM(cm.spend), 0)       AS total_spend,
-       COUNT(DISTINCT c.id)             AS active_clients,
-       COUNT(DISTINCT camp.id)          AS total_campaigns,
-       MAX(cm.synced_at)                AS last_synced
-     FROM clients c
-     LEFT JOIN campaigns camp ON camp.client_id = c.id
-     LEFT JOIN campaign_metrics cm ON cm.client_id = c.id
-     WHERE c.is_active = true${clientFilter}`,
+           COALESCE(SUM(cm.spend), 0) AS total_spend,
+           COUNT(DISTINCT c.id)       AS active_clients,
+           MAX(cm.synced_at)          AS last_synced
+         FROM clients c
+         LEFT JOIN campaign_metrics cm ON cm.client_id = c.id
+         WHERE c.is_active = true${clientFilter}`,
+        params
+    );
+
+    // Query 2: campaign count from campaigns table (clean, no metrics join)
+    const campResult = await query(
+        `SELECT COUNT(DISTINCT camp.id) AS total_campaigns
+         FROM campaigns camp
+         JOIN clients c ON c.id = camp.client_id AND c.is_active = true${clientFilter}`,
         params
     );
 
     const roasResult = await query(
         `SELECT
-       CASE WHEN SUM(spend) > 0 THEN ROUND(SUM(revenue) / SUM(spend), 2) ELSE 0 END AS avg_roas
-     FROM campaign_metrics cm
-     JOIN clients c ON c.id = cm.client_id AND c.is_active = true${clientFilter}`,
+           CASE WHEN SUM(spend) > 0 THEN ROUND(SUM(revenue) / SUM(spend), 2) ELSE 0 END AS avg_roas
+         FROM campaign_metrics cm
+         JOIN clients c ON c.id = cm.client_id AND c.is_active = true${clientFilter}`,
         params
     );
 
@@ -44,7 +53,7 @@ export async function agencyDashboard(req, res) {
         total_spend: parseFloat(row.total_spend),
         avg_roas: parseFloat(roasResult.rows[0].avg_roas),
         active_clients: parseInt(row.active_clients),
-        total_campaigns: parseInt(row.total_campaigns),
+        total_campaigns: parseInt(campResult.rows[0].total_campaigns),
         last_synced: row.last_synced,
     });
 }
@@ -135,16 +144,24 @@ export async function employeeDashboard(req, res) {
 
     const placeholders = assignedIds.map((_, i) => `$${i + 1}`).join(', ');
 
+    // Query spend/last_synced from campaign_metrics directly (no campaigns join)
+    // Query campaign count separately to avoid a Cartesian product
     const result = await query(
         `SELECT
-           COALESCE(SUM(cm.spend), 0)   AS total_spend,
-           COUNT(DISTINCT c.id)         AS assigned_clients,
-           COUNT(DISTINCT camp.id)      AS total_campaigns,
-           MAX(cm.synced_at)            AS last_synced
+           COALESCE(SUM(cm.spend), 0) AS total_spend,
+           COUNT(DISTINCT c.id)       AS assigned_clients,
+           MAX(cm.synced_at)          AS last_synced
          FROM clients c
-         LEFT JOIN campaigns camp ON camp.client_id = c.id
          LEFT JOIN campaign_metrics cm ON cm.client_id = c.id
          WHERE c.is_active = true AND c.id IN (${placeholders})`,
+        assignedIds
+    );
+
+    const campResult = await query(
+        `SELECT COUNT(DISTINCT camp.id) AS total_campaigns
+         FROM campaigns camp
+         JOIN clients c ON c.id = camp.client_id AND c.is_active = true
+         WHERE c.id IN (${placeholders})`,
         assignedIds
     );
 
@@ -152,7 +169,7 @@ export async function employeeDashboard(req, res) {
     return res.json({
         total_spend: parseFloat(row.total_spend),
         assigned_clients: parseInt(row.assigned_clients),
-        total_campaigns: parseInt(row.total_campaigns),
+        total_campaigns: parseInt(campResult.rows[0].total_campaigns),
         last_synced: row.last_synced,
     });
 }

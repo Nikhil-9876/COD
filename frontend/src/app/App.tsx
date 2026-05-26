@@ -2,8 +2,8 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-route
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { Login } from "./components/screens/auth/Login";
 import { MainDashboard } from "./components/screens/dashboards/MainDashboard";
-import { AddClient } from "./components/screens/clients/AddClient";
 import { ClientDashboard } from "./components/screens/dashboards/ClientDashboard";
+import { PageSpinner } from "./components/ui/LoadingSkeletons";
 
 import { ReactNode } from "react";
 
@@ -22,11 +22,7 @@ function AuthGuard({
     const location = useLocation();
 
     if (loading) {
-        return (
-            <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: "#F1F5F9" }}>
-                <div style={{ color: "#64748B", fontSize: 16 }}>Loading…</div>
-            </div>
-        );
+        return <PageSpinner />;
     }
 
     if (!user) {
@@ -62,13 +58,7 @@ function getDashboardPath(role: string): string {
 function SmartRedirect() {
     const { user, loading } = useAuth();
 
-    if (loading) {
-        return (
-            <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: "#F1F5F9" }}>
-                <div style={{ color: "#64748B", fontSize: 16 }}>Loading…</div>
-            </div>
-        );
-    }
+    if (loading) return <PageSpinner />;
 
     if (!user) return <Navigate to="/login" replace />;
     return <Navigate to={getDashboardPath(user.role)} replace />;
@@ -85,14 +75,6 @@ function AppRoutes() {
                     <Route path="/login" element={<Login />} />
 
                     {/* Admin routes */}
-                    <Route
-                        path="/agency/add-client"
-                        element={
-                            <AuthGuard allowedRoles={["admin"]}>
-                                <AddClient />
-                            </AuthGuard>
-                        }
-                    />
                     <Route
                         path="/agency/:tab?"
                         element={

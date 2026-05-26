@@ -1,15 +1,17 @@
 import { useState, useEffect } from "react";
+import { PageTransition } from "../../ui/LoadingSkeletons";
 import { useNavigate, useParams } from "react-router";
 import {
   LayoutDashboard, Users, Megaphone, FileBarChart,
   RefreshCw, Settings, Bell, Search, ChevronDown,
-  Plus, Cloud, LogOut, ShieldCheck
+  Plus, Cloud, LogOut, ShieldCheck, Menu
 } from "lucide-react";
 import { useAuth } from "../../../context/AuthContext";
 
 // Import Shared Tabs
 import { DashboardOverviewD, DashboardOverviewM } from "../overview/Overview";
 import { ClientsD, ClientsM } from "../clients/ClientsList";
+import { AddClient } from "../clients/AddClient";
 import { CampaignsD, CampaignsM } from "../campaigns/Campaigns";
 import { SyncStatusD, SyncStatusM } from "../integrations/SyncStatus";
 import { SettingsD, SettingsM } from "../settings/Settings";
@@ -34,6 +36,8 @@ const ALL_NAV: { key: Section; icon: React.FC<{ size?: number; className?: strin
 function Desktop({ section, onSection, search, onSearch }: { section: Section; onSection: (s: Section) => void; search: string; onSearch: (s: string) => void }) {
   const { logout, user } = useAuth();
   const navigate = useNavigate();
+  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isAddClientOpen, setIsAddClientOpen] = useState(false);
   
   const isAdmin = user?.role === "admin";
   const isManager = user?.role === "manager";
@@ -58,8 +62,8 @@ function Desktop({ section, onSection, search, onSearch }: { section: Section; o
 
   function content() {
     switch (section) {
-      case "Dashboard": return <DashboardOverviewD onSection={onSection} />;
-      case "Clients": return <ClientsD search={search} />;
+      case "Dashboard": return <DashboardOverviewD onSection={onSection} onAddClient={() => setIsAddClientOpen(true)} />;
+      case "Clients": return <ClientsD search={search} onAddClient={() => setIsAddClientOpen(true)} />;
       case "Campaigns": return <CampaignsD search={search} />;
       case "Reports": return <div className="p-6 max-w-[1200px] mx-auto"><Reports /></div>;
       case "Sync Status": return <SyncStatusD />;
@@ -72,53 +76,65 @@ function Desktop({ section, onSection, search, onSearch }: { section: Section; o
   return (
     <div className="flex h-screen overflow-hidden" style={{ background: "#F8FAFC" }}>
       {/* Inner CRM Sidebar */}
-      <div className="flex flex-col flex-shrink-0" style={{ width: 200, background: "#1E293B" }}>
-        <div className="flex items-center gap-2 px-4 py-4 border-b" style={{ borderColor: "rgba(255,255,255,0.08)" }}>
-          <div className="rounded-lg p-1.5" style={{ background: "#6366F1" }}>
-            <Cloud size={13} className="text-white" />
-          </div>
-          <span className="text-white font-bold" style={{ fontSize: 13 }}>CloudCRM</span>
-        </div>
-        <div className="px-4 py-2.5 border-b" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
-          <p className="text-white font-medium" style={{ fontSize: 11 }}>Bright Agency</p>
-          <p style={{ fontSize: 10, color: "#64748B" }}>Enterprise Plan</p>
+      <div 
+        className="flex flex-col flex-shrink-0 transition-all duration-300 ease-in-out" 
+        style={{ width: isCollapsed ? 64 : 200, background: "#1E293B" }}
+      >
+        {/* Sidebar Header with Hamburger */}
+        <div className="flex items-center justify-start px-[17px] gap-3 h-[52px] border-b overflow-hidden" style={{ borderColor: "rgba(255,255,255,0.08)" }}>
+          <button 
+            onClick={() => setIsCollapsed(!isCollapsed)}
+            className="p-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition-colors cursor-pointer flex-shrink-0"
+          >
+            <Menu size={18} />
+          </button>
+          <span className={`text-white font-bold whitespace-nowrap transition-all duration-300 ${isCollapsed ? 'opacity-0 w-0' : 'opacity-100'}`} style={{ fontSize: 14 }}>
+            CloudCRM
+          </span>
         </div>
         
         {/* Nav */}
-        <nav className="flex-1 py-3 flex flex-col gap-0.5 px-2">
+        <nav className="flex-1 py-3 flex flex-col gap-1.5 px-3 overflow-hidden">
           {visibleNav.map(({ key, icon: Icon }) => (
             <button
               key={key}
               onClick={() => onSection(key)}
-              className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg transition-colors cursor-pointer text-left"
+              title={isCollapsed ? key : undefined}
+              className="flex items-center justify-start h-10 w-full pl-[11px] gap-3 rounded-xl transition-colors cursor-pointer overflow-hidden"
               style={{
                 background: section === key ? "rgba(99,102,241,0.25)" : "transparent",
                 color: section === key ? "#A5B4FC" : "#94A3B8",
               }}
             >
-              <Icon size={14} />
-              <span className="font-medium" style={{ fontSize: 12 }}>{key}</span>
+              <Icon size={18} className="flex-shrink-0" />
+              <span className={`font-medium whitespace-nowrap transition-all duration-300 ${isCollapsed ? 'opacity-0 w-0' : 'opacity-100'}`} style={{ fontSize: 13 }}>
+                {key}
+              </span>
             </button>
           ))}
         </nav>
         
         {/* User + Sign Out */}
-        <div className="px-3 py-3 border-t" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
-          <div className="flex items-center gap-2 mb-2">
-            <div className="w-6 h-6 rounded-full flex items-center justify-center text-white font-bold flex-shrink-0" style={{ background: "#6366F1", fontSize: 9 }}>
+        <div className="py-3 border-t flex flex-col gap-3 px-3 overflow-hidden" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
+          <div className="flex items-center justify-start pl-[4px] gap-3">
+            <div className="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold flex-shrink-0" style={{ background: "#6366F1", fontSize: 11 }}>
               {user?.name ? user.name.substring(0, 2).toUpperCase() : "U"}
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-white font-medium truncate" style={{ fontSize: 10 }}>{user?.name ?? "User"}</p>
+            <div className={`flex flex-col min-w-0 transition-all duration-300 whitespace-nowrap ${isCollapsed ? 'opacity-0 w-0' : 'opacity-100'}`}>
+              <p className="text-white font-medium truncate" style={{ fontSize: 11 }}>{user?.name ?? "User"}</p>
               <p style={{ fontSize: 9, color: "#64748B" }}>{roleLabel}</p>
             </div>
           </div>
           <button
             onClick={handleLogout}
-            className="w-full flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
-            style={{ fontSize: 11 }}
+            title={isCollapsed ? "Sign Out" : undefined}
+            className="flex items-center justify-start h-10 w-full pl-[11px] gap-3 rounded-xl transition-colors cursor-pointer text-slate-400 hover:text-white hover:bg-white/10 overflow-hidden"
+            style={{ fontSize: 12 }}
           >
-            <LogOut size={12} /> Sign Out
+            <LogOut size={18} className="flex-shrink-0" /> 
+            <span className={`whitespace-nowrap transition-all duration-300 ${isCollapsed ? 'opacity-0 w-0' : 'opacity-100'}`}>
+              Sign Out
+            </span>
           </button>
         </div>
       </div>
@@ -143,7 +159,7 @@ function Desktop({ section, onSection, search, onSearch }: { section: Section; o
           </button>
           {isAdmin && (
             <button
-              onClick={() => navigate("/agency/add-client")}
+              onClick={() => setIsAddClientOpen(true)}
               className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-white font-semibold cursor-pointer hover:bg-indigo-600 transition-colors"
               style={{ background: "#6366F1", fontSize: 12 }}
             >
@@ -160,8 +176,12 @@ function Desktop({ section, onSection, search, onSearch }: { section: Section; o
         </div>
 
         {/* Page content */}
-        <div className="flex-1 p-5 overflow-y-auto relative">{content()}</div>
+        <div className="flex-1 p-5 overflow-y-auto relative">
+          <PageTransition sectionKey={section}>{content()}</PageTransition>
+        </div>
       </div>
+
+      <AddClient isOpen={isAddClientOpen} onClose={() => setIsAddClientOpen(false)} />
     </div>
   );
 }
@@ -244,7 +264,9 @@ function Mobile({ section, onSection, search, onSearch }: { section: Section; on
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto relative" style={{ background: "#F8FAFC" }}>{content()}</div>
+      <div className="flex-1 overflow-y-auto relative" style={{ background: "#F8FAFC" }}>
+        <PageTransition sectionKey={section}>{content()}</PageTransition>
+      </div>
 
       {/* Bottom tab bar */}
       <div className="flex border-t border-slate-100 bg-white flex-shrink-0">

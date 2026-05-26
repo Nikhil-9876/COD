@@ -183,8 +183,7 @@ function friendlyError(payload: any, fallback: string) {
   return fallback;
 }
 
-export function AddClient() {
-  const navigate = useNavigate();
+export function AddClient({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const { apiFetch } = useAuth();
 
   const [step, setStep] = useState<Step>(0);
@@ -331,15 +330,13 @@ export function AddClient() {
     setStep(2);
   }
 
+  if (!isOpen) return null;
+
   return (
     <div
-      className="min-h-screen w-full px-4 py-8 md:px-8 md:py-10"
-      style={{
-        background:
-          "radial-gradient(circle at top right, rgba(37,99,235,0.10), transparent 28%), linear-gradient(180deg,#F8FAFC 0%,#EFF6FF 100%)",
-      }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 md:p-8 bg-slate-900/60 backdrop-blur-sm data-enter"
     >
-      <div className="mx-auto max-w-4xl">
+      <div className="w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-[28px] hide-scrollbar">
         <div
           className="bg-white rounded-[28px] border border-slate-200 shadow-[0_24px_80px_rgba(15,23,42,0.10)] overflow-hidden"
         >
@@ -423,7 +420,10 @@ export function AddClient() {
                 <div className="flex items-center justify-between gap-3 flex-wrap">
                   <button
                     type="button"
-                    onClick={() => navigate("/agency/dashboard")}
+                    onClick={() => {
+                      resetFlow();
+                      onClose();
+                    }}
                     className="rounded-xl px-4 py-2.5 border border-slate-200 text-slate-600 font-semibold hover:bg-slate-50 transition-colors"
                     style={{ fontSize: 13 }}
                   >
@@ -638,7 +638,10 @@ export function AddClient() {
                 <div className="flex gap-3 flex-col md:flex-row">
                   <button
                     type="button"
-                    onClick={() => navigate("/agency/dashboard")}
+                    onClick={() => {
+                      resetFlow();
+                      onClose();
+                    }}
                     className="flex-1 rounded-xl py-3 text-white font-semibold"
                     style={{ background: "#2563EB", fontSize: 13 }}
                   >

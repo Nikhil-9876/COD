@@ -4,11 +4,12 @@ import {
     connectPlatform, getOnboardingStatus, updateOnboardingStatus,
 } from '../controllers/clients.js';
 import { requireRole } from '../middleware/scopeGuard.js';
+import { cacheRoute } from '../utils/cache.js';
 
 const router = Router();
 
 router.use(requireRole('admin', 'manager', 'employee'));
-router.get('/', listClients);
+router.get('/', cacheRoute(300), listClients);
 router.get('/:id', getClient);
 router.post('/', requireRole('admin'), createClient);
 router.patch('/:id', requireRole('admin'), updateClient);

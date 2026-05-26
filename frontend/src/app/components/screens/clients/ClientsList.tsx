@@ -3,16 +3,27 @@ import { useNavigate } from "react-router";
 import { Plus, MoreHorizontal } from "lucide-react";
 import { useAuth } from "../../../context/AuthContext";
 import { StatusBadge, fmtK } from "../overview/Overview";
+import { ClientsSkeletonD, CardListSkeleton, useDelayedLoading } from "../../ui/LoadingSkeletons";
 
-export function ClientsD({ search }: { search: string }) {
+export function ClientsD({ search, onAddClient }: { search: string; onAddClient?: () => void }) {
   const navigate = useNavigate();
   const { apiFetch, user } = useAuth();
   const canAddClient = user?.role === "admin";
   const [clients, setClients] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    apiFetch("/api/clients").then(res => res.json()).then(data => setClients(data.clients || []));
+    setLoading(true);
+    apiFetch("/api/clients")
+      .then(res => res.json())
+      .then(data => setClients(data.clients || []))
+      .finally(() => setLoading(false));
   }, [apiFetch]);
+
+  const showSkeleton = useDelayedLoading(loading, 100);
+
+  if (showSkeleton) return <ClientsSkeletonD />;
+  if (loading) return <div className="flex-1" />; 
 
   const filtered = clients.filter(c =>
     c.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -20,12 +31,12 @@ export function ClientsD({ search }: { search: string }) {
   );
   
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-4 data-enter">
       <div className="flex items-center justify-between">
         <h1 className="text-slate-900 font-bold" style={{ fontSize: 18 }}>Clients</h1>
         {canAddClient && (
           <button
-            onClick={() => navigate("/agency/add-client")}
+            onClick={onAddClient}
             className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-white font-semibold cursor-pointer hover:bg-indigo-600 transition-colors"
             style={{ background: "#6366F1", fontSize: 12 }}
           >
@@ -81,15 +92,25 @@ export function ClientsD({ search }: { search: string }) {
   );
 }
 
-export function ClientsM({ search }: { search: string }) {
+export function ClientsM({ search, onAddClient }: { search: string; onAddClient?: () => void }) {
   const navigate = useNavigate();
   const { apiFetch, user } = useAuth();
   const canAddClient = user?.role === "admin";
   const [clients, setClients] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    apiFetch("/api/clients").then(res => res.json()).then(data => setClients(data.clients || []));
+    setLoading(true);
+    apiFetch("/api/clients")
+      .then(res => res.json())
+      .then(data => setClients(data.clients || []))
+      .finally(() => setLoading(false));
   }, [apiFetch]);
+
+  const showSkeleton = useDelayedLoading(loading, 100);
+
+  if (showSkeleton) return <div className="p-3"><CardListSkeleton count={4} /></div>;
+  if (loading) return <div className="flex-1" />;
 
   const filtered = clients.filter(c =>
     c.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -97,12 +118,12 @@ export function ClientsM({ search }: { search: string }) {
   );
   
   return (
-    <div className="flex flex-col gap-3 p-3">
+    <div className="flex flex-col gap-3 p-3 data-enter">
       <div className="flex items-center justify-between">
         <p className="text-slate-800 font-bold" style={{ fontSize: 15 }}>Clients</p>
         {canAddClient && (
           <button
-            onClick={() => navigate("/agency/add-client")}
+            onClick={onAddClient}
             className="rounded-lg px-2.5 py-1.5 text-white font-semibold flex items-center gap-1 cursor-pointer hover:bg-indigo-600"
             style={{ background: "#6366F1", fontSize: 11 }}
           >

@@ -15,10 +15,45 @@ import {
     isKeycloakAdminConfigured,
     provisionKeycloakUser,
 } from '../services/keycloak.js';
+import { clearCacheByPrefix } from '../utils/cache.js';
+
+function invalidateClientCaches() {
+    clearCacheByPrefix('/api/clients');
+    clearCacheByPrefix('/api/dashboard');
+    clearCacheByPrefix('/api/charts');
+}
 
 // ─── GET /api/clients ───────────────────────────────────────
 export async function listClients(req, res) {
     const role = req.user.role;
+
+    // Pre-aggregate metrics per client in a CTE to prevent the Cartesian product
+    // that occurs when campaign_metrics (many per client) is joined alongside
+    // campaigns (also many per client): without this, SUM(spend) is multiplied
+    // by the number of campaigns for each client.
+    const CLIENTS_WITH_STATS_SQL = `
+        WITH agg AS (
+            SELECT client_id,
+                   COALESCE(SUM(spend),   0) AS total_spend,
+                   COALESCE(SUM(leads),   0) AS total_leads,
+                   COALESCE(SUM(revenue), 0) AS total_revenue
+            FROM campaign_metrics
+            GROUP BY client_id
+        ),
+        camp_count AS (
+            SELECT client_id, COUNT(*) AS campaign_count
+            FROM campaigns
+            GROUP BY client_id
+        )
+        SELECT c.id, c.name, c.industry, c.monthly_budget, c.onboarding_status, c.created_at,
+               COALESCE(agg.total_spend,   0) AS total_spend,
+               COALESCE(agg.total_leads,   0) AS total_leads,
+               COALESCE(agg.total_revenue, 0) AS total_revenue,
+               COALESCE(camp_count.campaign_count, 0) AS campaign_count
+        FROM clients c
+        LEFT JOIN agg        ON agg.client_id        = c.id
+        LEFT JOIN camp_count ON camp_count.client_id = c.id
+    `;
 
     // Manager or Employee — only show assigned clients
     if (role === 'employee' || role === 'manager') {
@@ -27,16 +62,8 @@ export async function listClients(req, res) {
             return res.json({ clients: [] });
         }
         const result = await query(
-            `SELECT c.id, c.name, c.industry, c.monthly_budget, c.onboarding_status, c.created_at,
-                COALESCE(SUM(cm.spend), 0) AS total_spend,
-                COALESCE(SUM(cm.leads), 0) AS total_leads,
-                COALESCE(SUM(cm.revenue), 0) AS total_revenue,
-                COUNT(DISTINCT camp.id)    AS campaign_count
-             FROM clients c
-             LEFT JOIN campaigns camp ON camp.client_id = c.id
-             LEFT JOIN campaign_metrics cm ON cm.client_id = c.id
+            `${CLIENTS_WITH_STATS_SQL}
              WHERE c.is_active = true AND c.id = ANY($1::uuid[])
-             GROUP BY c.id
              ORDER BY c.created_at DESC`,
             [assignedIds]
         );
@@ -45,17 +72,9 @@ export async function listClients(req, res) {
 
     // Admin — show all clients
     const result = await query(
-        `SELECT c.id, c.name, c.industry, c.monthly_budget, c.onboarding_status, c.created_at,
-            COALESCE(SUM(cm.spend), 0) AS total_spend,
-            COALESCE(SUM(cm.leads), 0) AS total_leads,
-            COALESCE(SUM(cm.revenue), 0) AS total_revenue,
-            COUNT(DISTINCT camp.id)    AS campaign_count
-     FROM clients c
-     LEFT JOIN campaigns camp ON camp.client_id = c.id
-     LEFT JOIN campaign_metrics cm ON cm.client_id = c.id
-     WHERE c.is_active = true
-     GROUP BY c.id
-     ORDER BY c.created_at DESC`
+        `${CLIENTS_WITH_STATS_SQL}
+         WHERE c.is_active = true
+         ORDER BY c.created_at DESC`
     );
     return res.json({ clients: result.rows });
 }
@@ -168,6 +187,8 @@ export async function createClient(req, res) {
         console.error(`[EMAIL] Failed to send Keycloak credentials to ${contact_email}:`, err);
     }
 
+    invalidateClientCaches();
+
     return res.status(201).json({
         client_id: clientId,
         contact_email,
@@ -205,6 +226,9 @@ export async function updateClient(req, res) {
     );
 
     if (result.rows.length === 0) return res.status(404).json({ error: 'Client not found' });
+    
+    invalidateClientCaches();
+    
     return res.json({ client: result.rows[0] });
 }
 
@@ -225,6 +249,8 @@ export async function deleteClient(req, res) {
     } finally {
         dbClient.release();
     }
+
+    invalidateClientCaches();
 
     return res.json({ message: 'Client deactivated' });
 }
