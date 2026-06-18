@@ -1,5 +1,6 @@
 // Sends application emails, including Gmail API report delivery with PDF attachments.
 import { google } from 'googleapis';
+import { getFrontendOrigin, getPublicApiOrigin } from '../utils/origin.js';
 
 const GMAIL_SEND_SCOPE = 'https://www.googleapis.com/auth/gmail.send';
 const GMAIL_EMAIL_SCOPE = 'email'; // needed to read the user's email address via userinfo API
@@ -17,7 +18,7 @@ function getOAuthClient() {
     const oauth2Client = new google.auth.OAuth2(
         process.env.GMAIL_CLIENT_ID,
         process.env.GMAIL_CLIENT_SECRET,
-        process.env.GMAIL_REDIRECT_URI || `${process.env.PUBLIC_API_ORIGIN || 'http://localhost:3001'}/api/reports/email/gmail/callback`,
+        process.env.GMAIL_REDIRECT_URI || `${getPublicApiOrigin()}/api/reports/email/gmail/callback`,
     );
     return oauth2Client;
 }
@@ -139,7 +140,7 @@ export async function sendGmailMessage({ from, refreshToken, to, subject, html, 
 }
 
 export async function sendKeycloakCredentialsEmail({ email, password, name, role }) {
-    const loginUrl = `${process.env.FRONTEND_ORIGIN || 'http://localhost:5173'}/login`;
+    const loginUrl = `${getFrontendOrigin()}/login`;
 
     if (process.env.NODE_ENV === 'production') {
         // TODO: integrate with email provider
