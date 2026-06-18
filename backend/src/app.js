@@ -2,6 +2,7 @@ import express from 'express';
 import 'express-async-errors';
 import cors from 'cors';
 import helmet from 'helmet';
+import { getFrontendOrigin } from './utils/origin.js';
 import clientRoutes from './routes/clients.js';
 import campaignRoutes from './routes/campaigns.js';
 import metricRoutes from './routes/metrics.js';
@@ -30,7 +31,7 @@ app.use(helmet.hsts({
 
 // ─── CORS ───────────────────────────────────────────────────
 app.use(cors({
-    origin: process.env.FRONTEND_ORIGIN || 'http://localhost:5173',
+    origin: getFrontendOrigin(),
     credentials: true,
     methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Dev-Auth-Email'],

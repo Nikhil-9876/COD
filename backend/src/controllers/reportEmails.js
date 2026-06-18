@@ -6,6 +6,7 @@ import { buildUserGmailAuthUrl, exchangeGmailAuthCode, sendGmailMessage } from '
 import { generateClientReportBuffer } from '../services/pdf.js';
 import { buildReportEmailTemplate } from '../templates/reportEmailTemplate.js';
 import { uuidParamSchema } from '../validators/clients.js';
+import { getFrontendOrigin } from '../utils/origin.js';
 
 const SEND_TIMERS = new Map();
 const ROLE_LABELS = {
@@ -58,10 +59,6 @@ function buildScope(req) {
         clientId: req.user.client_id,
         assignedClientIds: req.assignedClientIds || [],
     };
-}
-
-function getFrontendOrigin() {
-    return process.env.FRONTEND_ORIGIN || 'http://localhost:5173';
 }
 
 function sanitizeReturnTo(value) {
